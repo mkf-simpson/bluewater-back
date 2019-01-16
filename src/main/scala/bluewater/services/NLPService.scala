@@ -64,7 +64,7 @@ class NLPServiceHydroServingHttpInterpreter[F[_]: ConcurrentEffect](config: Conf
   import org.http4s.circe.CirceEntityEncoder._
 
   case class HydroServingInput(msg: Seq[String])
-  case class HydroServingOutput(intent: Seq[Intent], confidence: Seq[Double], intent_i: Seq[Int], input_length: Seq[Int])
+  case class HydroServingOutput(intents: Seq[Intent], confidences: Seq[Double], input_length: Seq[Int])
 
   val uriStr = s"https://${config.hydroServing.host}/gateway/applications/${config.hydroServing.appName}/${config.hydroServing.appSignature}"
   
@@ -79,8 +79,8 @@ class NLPServiceHydroServingHttpInterpreter[F[_]: ConcurrentEffect](config: Conf
       req <- PostGenerator.apply(HydroServingInput(Seq(msg)), uri)
       output <- client.expect(req)(jsonOf[F, HydroServingOutput])
       result <- Effect[F].fromOption(for {
-        intent <- output.intent.headOption
-        confidence <- output.confidence.headOption
+        intent <- output.intents.headOption
+        confidence <- output.confidences.headOption
       } yield NLPResult(intent, confidence), new Exception(s"Empty intents or confidence from HS: $output"))
     } yield result
   }

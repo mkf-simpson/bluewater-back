@@ -3,6 +3,7 @@ package bluewater
 import bluewater.config.Configuration
 import bluewater.services._
 import bluewater.utils.SSLFix
+import cats.implicits._
 import cats.effect._
 import cats.effect.concurrent.Ref
 import com.twitter.finagle.Http
@@ -49,9 +50,9 @@ object Main extends IOApp with Logging {
     config <- loadConfiguration[IO]
     _ <- IO(logger.info(config.toString))
     
-    nlpService <- Dependencies.nlpService(config)
-    chatService <- Dependencies.chatService(config)
-    queueInstance <- Dependencies.queueService
+    nlpService <- Dependencies.nlpService[IO](config)
+    chatService <- Dependencies.chatService[IO](config)
+    queueInstance <- Dependencies.queueService[IO]
 
     http <- IO(Http.serve(s"${config.http.host}:${config.http.port}", new HttpService[IO](nlpService, chatService, queueInstance).api))
     _ <- IO(logger.info(s"HTTP server started on ${http.boundAddress}"))

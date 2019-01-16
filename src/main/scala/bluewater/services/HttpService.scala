@@ -52,18 +52,21 @@ class HttpService[F[_]: Effect](nlpService: NLPService[F], chatService: ChatServ
   def slack = post("slack" :: jsonBody[Slack.BotRequest]) { msg: Slack.BotRequest=>
     msg match {
       case Slack.Challenge(_, challenge, _) => Ok(challenge).pure[F]
-      case Slack.Message(token, teamId, apiAppId, event, tpe, eventId, eventTime, authedUsers) => for {
-        intent <- nlpService.getIntent(event.text).recover {
+      case m: Slack.Message => for {
+        intent <- nlpService.getIntent(m.event.text).recover {
           case exc: Throwable =>
             logger.error(s"Error while getting intent: $exc")
             NLPResult(Intent.Fail, 100d)
         }
-        _ <- Effect[F].delay(logger.info(s"${event.text} -> $intent"))
+        _ <- Effect[F].delay(logger.info(s"${m.event.text} -> $intent"))
         _ <- intent.intent match {
-          case Intent.Book => queueService.add(event.user)
+          case Intent.Book => queueService.add(m.event.user)
           case _ => Effect[F].unit
         }
-        _ <- chatService.sendMessage(s"<@${event.user}> ваше сообщение было распознано как ${intent.intent} с вероятностью ${intent.confidence}", event.channel)
+        _ <- chatService.sendMessage(s"<@${m.event.user}> ваше сообщение было распознано как ${intent.intent} с вероятностью ${intent.confidence}", m.event.channel)
+      } yield Ok("ok")
+      case _ => for {
+        _ <- Effect[F].delay(logger.info("Fucken BotRequest"))
       } yield Ok("ok")
     }
   }
